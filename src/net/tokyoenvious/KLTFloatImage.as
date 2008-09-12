@@ -4,17 +4,21 @@ package net.tokyoenvious {
         public var nCols:uint;
         public var nRows:uint;
         public var data:Array;
+
         public function KLTFloatImage(cols:uint, rows:uint) {
             nCols = cols;
             nRows = rows;
             data = new Array(nCols * nRows);
         }
+
         public function getDataAt(x:uint, y:uint):Number {
             return data[y * nCols + x];
         }
+
         public function setDataAt(x:uint, y:uint, value:Number):void {
             data[y * nCols + x] = value;
         }
+
         public function clone():KLTFloatImage {
             var image:KLTFloatImage = new KLTFloatImage(nCols, nRows);
             image.nCols = nCols;
@@ -22,6 +26,7 @@ package net.tokyoenvious {
             image.data  = data.slice();
             return image;
         }
+
         public static function fromBitmapData(bd:BitmapData):KLTFloatImage {
             var image:KLTFloatImage = new KLTFloatImage(bd.width, bd.height);
             for (var y:uint = 0; y < bd.height; y++) {

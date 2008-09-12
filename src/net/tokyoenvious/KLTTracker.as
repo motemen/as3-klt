@@ -12,22 +12,12 @@ package net.tokyoenvious {
         private var gaussKernel:ConvolutionKernel;
         private var gaussderivKernel:ConvolutionKernel;
 
-        public function KLTTracker() {
-        }
-
         public function selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:uint):Array {
-            if (windowWidth % 2 != 1) {
-                windowWidth++;
-            }
-            if (windowHeight % 2 != 1) {
-                windowHeight++;
-            }
-            if (windowWidth < 3) {
-                windowWidth = 3;
-            }
-            if (windowHeight < 3) {
-                windowHeight = 3;
-            }
+            if (windowWidth % 2 != 1)  windowWidth++;
+            if (windowHeight % 2 != 1) windowHeight++;
+            if (windowWidth < 3)  windowWidth = 3;
+            if (windowHeight < 3) windowHeight = 3;
+
             var windowHW:uint = windowWidth / 2; 
             var windowHH:uint = windowHeight / 2;
 
@@ -59,21 +49,8 @@ package net.tokyoenvious {
                         /* Store the trackability of the pixel as the minimum
                            of the two eigenvalues */
                         var val:Number = calcMinEigenvalue(gxx, gxy, gyy);
-                        //trace([gxx, gxy, gyy]);
-                        //trace(val);
-                        if (val != 0) {
-                            //trace('vala: ' + val);
-                        }
                         if (val > limit) {
-                            /*
-                            KLTWarning("(_KLTSelectGoodFeatures) minimum eigenvalue %f is "
-                                    "greater than the capacity of an int; setting "
-                                    "to maximum value", val);
-                            */
                             val = limit;
-                        }
-                        if (val != 0) {
-                            //trace('valb: ' + val);
                         }
                         points.push({ x: x, y: y, val: val });
 
@@ -82,17 +59,7 @@ package net.tokyoenvious {
             }
 
             /* Sort the features */
-            //points.sort(function (a:Object, b:Object):int { return a.val < b.val ? -1 : a.val > b.val ? +1 : 0 });
             points.sort(function (a:Object, b:Object):int { return a.val < b.val ? +1 : a.val > b.val ? -1 : 0 });
-            trace('sorted');
-            /* Check tc->mindist */
-            /*
-            if (mindist < 0) {
-                KLTWarning("(_KLTSelectGoodFeatures) Tracking context field tc->mindist "
-                        "is negative (%d); setting to zero", tc->mindist);
-                mindist = 0;
-            }
-            */
 
             /* Enforce minimum distance between features */
             return enforceMinimumDistance(
@@ -103,10 +70,11 @@ package net.tokyoenvious {
                 nFeatures
             );
         }
+
         private function convolveImageHoriz(image:KLTFloatImage, kernel:ConvolutionKernel):KLTFloatImage {
             var imageOut:KLTFloatImage = image.clone();
             var radius:uint = kernel.width / 2;
-            var _:int = 0;
+
             for (var y:uint = 0; y < image.nRows; y++) {
                 for (var x:uint = 0; x < radius; x++) {
                     imageOut.setDataAt(x, y, 0.0);
@@ -122,11 +90,14 @@ package net.tokyoenvious {
                     imageOut.setDataAt(x, y, 0.0);
                 }
             }
+
             return imageOut;
         }
+
         private function convolveImageVert(image:KLTFloatImage, kernel:ConvolutionKernel):KLTFloatImage {
             var imageOut:KLTFloatImage = image.clone();
             var radius:uint = kernel.width / 2;
+
             for (var x:uint = 0; x < image.nCols; x++) {
                 for (var y:uint = 0; y < radius; y++) {
                     imageOut.setDataAt(x, y, 0.0);
@@ -142,14 +113,11 @@ package net.tokyoenvious {
                     imageOut.setDataAt(x, y, 0.0);
                 }
             }
+
             return imageOut;
         }
+
         private function computeGradients(img:KLTFloatImage, sigma:Number):Object {
-            /* Output images must be large enough to hold result */
-            //assert(gradx->ncols >= img->ncols);
-            //assert(gradx->nrows >= img->nrows);
-            //assert(grady->ncols >= img->ncols);
-            //assert(grady->nrows >= img->nrows);
             /* Compute kernels, if necessary */
             if (Math.abs(sigma - sigmaLast) > 0.05) {
                 var kernels:Object = ConvolutionKernel.computeKernels(sigma);
@@ -157,14 +125,16 @@ package net.tokyoenvious {
                 gaussderivKernel = kernels.gaussderivKernel;
                 sigmaLast = sigma;
             }
+
             return {
                 x: convolveSeparate(img, gaussderivKernel, gaussKernel),
                 y: convolveSeparate(img, gaussKernel, gaussderivKernel)
             };
         }
+
         private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, mindist:int, minEigenvalue:int, nFeatures:int):Array {
-            var index:int;/* Index into features */
-            var x:int, y:int, val:int;/* Location and trackability of pixel under consideration */
+            var index:int = 0;          /* Index into features */
+            var x:int, y:int, val:int;  /* Location and trackability of pixel under consideration */
             var featuremap:Array = new Array(nCols * nRows);
             var features:Array = new Array(nFeatures);
 
@@ -174,19 +144,7 @@ package net.tokyoenvious {
             /* Necessary because code below works with (mindist-1) */
             mindist--;
 
-            /* If we are keeping all old good features, then add them to the featuremap */
-            /*
-            if (!overwriteAllFeatures)
-                for (index = 0 ; index < featurelist->nFeatures ; index++)
-                    if (featurelist->feature[index]->val >= 0)  {
-                        x   = (int) featurelist->feature[index]->x;
-                        y   = (int) featurelist->feature[index]->y;
-                        _fillFeaturemap(x, y, featuremap, mindist, ncols, nrows);
-                    }
-            */
-
             /* For each feature point, in descending order of importance, do ... */
-            index = 0;
             for each (var point:Object in points) {
                 /* If we can't add all the points, then fill in the rest
                    of the featurelist with -1's */
@@ -200,14 +158,6 @@ package net.tokyoenvious {
                     break;
                 }
 
-                /* Ensure that feature is in-bounds */
-                /*
-                assert(x >= 0);
-                assert(x < ncols);
-                assert(y >= 0);
-                assert(y < nrows);
-                */
-
                 while (index < nFeatures && features[index] && features[index].val >= 0) {
                     index++;
                 }
@@ -218,29 +168,29 @@ package net.tokyoenvious {
 
                 /* If no neighbor has been selected, and if the minimum
                    eigenvalue is large enough, then add feature to the current list */
-                trace('featuremap: ' + point.x + ',' + point.y + ':' + featuremap[point.y * nCols + point.x]);
                 if (!featuremap[point.y * nCols + point.x] && point.val >= minEigenvalue)  {
                     features[index++] = new KLTFeature(point.x, point.y, point.val);
-                    trace(features[index-1]);
 
                     /* Fill in surrounding region of feature map, but
                        make sure that pixels are in-bounds */
                     fillFeaturemap(point.x, point.y, featuremap, mindist, nCols, nRows);
                 }
             }
-            trace(features[0].x + ',' + features[0].y);
 
             return features;
         }
+
         private function fillFeaturemap(x:int, y:int, featuremap:Array, mindist:int, nCols:int, nRows:int):void {
             for (var iy:int = y - mindist ; iy <= y + mindist ; iy++)
                 for (var ix:int = x - mindist ; ix <= x + mindist ; ix++)
                     if (ix >= 0 && ix < nCols && iy >= 0 && iy < nRows)
                         featuremap[iy * nCols + ix] = true;
         }
+
         private function calcMinEigenvalue(gxx:Number, gxy:Number, gyy:Number):Number {
             return (gxx + gyy - Math.sqrt((gxx - gyy) * (gxx - gyy) + 4 * gxy * gxy)) / 2.0;
         }
+
         private function convolveSeparate(img:KLTFloatImage, horizKernel:ConvolutionKernel, vertKernel:ConvolutionKernel):KLTFloatImage {
             return convolveImageVert(convolveImageHoriz(img, horizKernel), vertKernel);
         }
@@ -261,30 +211,23 @@ class ConvolutionKernel {
         var gaussderiv:ConvolutionKernel = new ConvolutionKernel;
         var factor:Number = 0.01; /* for truncating tail */
         var i:int, hw:uint;
-        //assert(MAX_KERNEL_WIDTH % 2 == 1);
-        //assert(sigma >= 0.0);
+
         /* Compute kernels, and automatically determine widths */
         {
             hw = MAX_KERNEL_WIDTH / 2;
             var maxGauss:Number = 1.0, maxGaussderiv:Number = sigma * Math.exp(-0.5);
             /* Compute gauss and deriv */
             for (i = -hw; i <= hw; i++) {
-                gauss.data[hw+i] = Math.exp(- i*i / (2 * sigma * sigma));
+                gauss.data[hw+i] = Math.exp(-i * i / (2 * sigma * sigma));
                 gaussderiv.data[hw+i] = -i * gauss.data[hw+i];
             }
             /* Compute widths */
             gauss.width = MAX_KERNEL_WIDTH;
-            for (i = -hw; Math.abs(gauss.data[hw+i] / maxGauss) < factor; 
-                    i++, gauss.width -= 2)
+            for (i = -hw; Math.abs(gauss.data[hw+i] / maxGauss) < factor; i++, gauss.width -= 2)
                 ;
             gaussderiv.width = MAX_KERNEL_WIDTH;
-            for (i = -hw; Math.abs(gaussderiv.data[hw+i] / maxGaussderiv) < factor; 
-                    i++, gaussderiv.width -= 2)
+            for (i = -hw; Math.abs(gaussderiv.data[hw+i] / maxGaussderiv) < factor; i++, gaussderiv.width -= 2)
                 ;
-            //if (gauss.width == MAX_KERNEL_WIDTH || 
-            //        gaussderiv.width == MAX_KERNEL_WIDTH)
-            //    KLTError("(_computeKernels) MAX_KERNEL_WIDTH %d is too small for "
-            //            "a sigma of %f", MAX_KERNEL_WIDTH, sigma);
         }
         /* Shift if width less than MAX_KERNEL_WIDTH */
         for (i = 0; i < gauss.width; i++)
@@ -302,7 +245,7 @@ class ConvolutionKernel {
             for (i = -hw; i <= hw; i++) den -= i * gaussderiv.data[i+hw];
             for (i = -hw; i <= hw; i++) gaussderiv.data[hw+i] /= den;
         }
-        //sigma_last = sigma;
+
         return {
             gaussKernel: gauss,
             gaussderivKernel: gaussderiv
