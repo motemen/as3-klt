@@ -1,10 +1,12 @@
 package net.tokyoenvious {
     import flash.display.BitmapData;
+
     public class KLTTracker {
         public var windowWidth:uint = 7, windowHeight:uint = 7;
         public var gradSigma:Number = 1.0;
         public var nSkippedPixels:uint = 0;
         public var mindist:uint = 10;
+        public var minEigenvalue:uint = 1;
 
         private var sigmaLast:Number = -10.0;
         private var gaussKernel:ConvolutionKernel;
@@ -13,7 +15,7 @@ package net.tokyoenvious {
         public function KLTTracker() {
         }
 
-        public function selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint):Array {
+        public function selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:uint):Array {
             if (windowWidth % 2 != 1) {
                 windowWidth++;
             }
@@ -35,7 +37,6 @@ package net.tokyoenvious {
             {
                 var points:Array = [];
                 var limit:int = (1 << 16) - 1;
-                trace('limit: ' + limit);
                 var borderX:int = borderX;	/* Must not touch cols */
                 var borderY:int = borderY;	/* lost by convolution */
                 if (borderX < windowHW) borderX = windowHW;
@@ -57,7 +58,7 @@ package net.tokyoenvious {
                         }
                         /* Store the trackability of the pixel as the minimum
                            of the two eigenvalues */
-                        var val:Number = minEigenvalue(gxx, gxy, gyy);
+                        var val:Number = calcMinEigenvalue(gxx, gxy, gyy);
                         //trace([gxx, gxy, gyy]);
                         //trace(val);
                         if (val != 0) {
@@ -92,19 +93,15 @@ package net.tokyoenvious {
                 mindist = 0;
             }
             */
+
             /* Enforce minimum distance between features */
-            /*
-            _enforceMinimumDistance(
-                pointlist,
-                npoints,
-                featurelist,
-                ncols, nrows,
+            return enforceMinimumDistance(
+                points,
+                nCols, nRows,
                 mindist,
-                min_eigenvalue,
-                overwriteAllFeatures
+                minEigenvalue,
+                nFeatures
             );
-            */
-            return points;
         }
         private function convolveImageHoriz(image:KLTFloatImage, kernel:ConvolutionKernel):KLTFloatImage {
             var imageOut:KLTFloatImage = image.clone();
@@ -165,7 +162,83 @@ package net.tokyoenvious {
                 y: convolveSeparate(img, gaussKernel, gaussderivKernel)
             };
         }
-        private function minEigenvalue(gxx:Number, gxy:Number, gyy:Number):Number {
+        private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, mindist:int, minEigenvalue:int, nFeatures:int):Array {
+            var index:int;/* Index into features */
+            var x:int, y:int, val:int;/* Location and trackability of pixel under consideration */
+            var featuremap:Array = new Array(nCols * nRows);
+            var features:Array = new Array(nFeatures);
+
+            /* Cannot add features with an eigenvalue less than one */
+            if (minEigenvalue < 1) minEigenvalue = 1;
+
+            /* Necessary because code below works with (mindist-1) */
+            mindist--;
+
+            /* If we are keeping all old good features, then add them to the featuremap */
+            /*
+            if (!overwriteAllFeatures)
+                for (index = 0 ; index < featurelist->nFeatures ; index++)
+                    if (featurelist->feature[index]->val >= 0)  {
+                        x   = (int) featurelist->feature[index]->x;
+                        y   = (int) featurelist->feature[index]->y;
+                        _fillFeaturemap(x, y, featuremap, mindist, ncols, nrows);
+                    }
+            */
+
+            /* For each feature point, in descending order of importance, do ... */
+            index = 0;
+            for each (var point:Object in points) {
+                /* If we can't add all the points, then fill in the rest
+                   of the featurelist with -1's */
+                if (index >= points.length) {
+                    while (index < nFeatures)  {
+                        if (features[index].val < 0) {
+                            features[index] = new KLTFeature(-1, -1, KLTFeature.KLT_NOT_FOUND);
+                        }
+                        index++;
+                    }
+                    break;
+                }
+
+                /* Ensure that feature is in-bounds */
+                /*
+                assert(x >= 0);
+                assert(x < ncols);
+                assert(y >= 0);
+                assert(y < nrows);
+                */
+
+                while (index < nFeatures && features[index] && features[index].val >= 0) {
+                    index++;
+                }
+
+                if (index >= nFeatures) {
+                    break;
+                }
+
+                /* If no neighbor has been selected, and if the minimum
+                   eigenvalue is large enough, then add feature to the current list */
+                trace('featuremap: ' + point.x + ',' + point.y + ':' + featuremap[point.y * nCols + point.x]);
+                if (!featuremap[point.y * nCols + point.x] && point.val >= minEigenvalue)  {
+                    features[index++] = new KLTFeature(point.x, point.y, point.val);
+                    trace(features[index-1]);
+
+                    /* Fill in surrounding region of feature map, but
+                       make sure that pixels are in-bounds */
+                    fillFeaturemap(point.x, point.y, featuremap, mindist, nCols, nRows);
+                }
+            }
+            trace(features[0].x + ',' + features[0].y);
+
+            return features;
+        }
+        private function fillFeaturemap(x:int, y:int, featuremap:Array, mindist:int, nCols:int, nRows:int):void {
+            for (var iy:int = y - mindist ; iy <= y + mindist ; iy++)
+                for (var ix:int = x - mindist ; ix <= x + mindist ; ix++)
+                    if (ix >= 0 && ix < nCols && iy >= 0 && iy < nRows)
+                        featuremap[iy * nCols + ix] = true;
+        }
+        private function calcMinEigenvalue(gxx:Number, gxy:Number, gyy:Number):Number {
             return (gxx + gyy - Math.sqrt((gxx - gyy) * (gxx - gyy) + 4 * gxy * gxy)) / 2.0;
         }
         private function convolveSeparate(img:KLTFloatImage, horizKernel:ConvolutionKernel, vertKernel:ConvolutionKernel):KLTFloatImage {
@@ -234,40 +307,5 @@ class ConvolutionKernel {
             gaussKernel: gauss,
             gaussderivKernel: gaussderiv
         };
-    }
-}
-
-import flash.display.BitmapData;
-class KLTFloatImage {
-    public var nCols:uint;
-    public var nRows:uint;
-    public var data:Array;
-    public function KLTFloatImage(cols:uint, rows:uint) {
-        nCols = cols;
-        nRows = rows;
-        data = new Array(nCols * nRows);
-    }
-    public function getDataAt(x:uint, y:uint):Number {
-        return data[y * nCols + x];
-    }
-    public function setDataAt(x:uint, y:uint, value:Number):void {
-        data[y * nCols + x] = value;
-    }
-    public function clone():KLTFloatImage {
-        var image:KLTFloatImage = new KLTFloatImage(nCols, nRows);
-        image.nCols = nCols;
-        image.nRows = nRows;
-        image.data  = data.slice();
-        return image;
-    }
-    public static function fromBitmapData(bd:BitmapData):KLTFloatImage {
-        var image:KLTFloatImage = new KLTFloatImage(bd.width, bd.height);
-        for (var y:uint = 0; y < bd.height; y++) {
-            for (var x:uint = 0; x < bd.width; x++) {
-                var rgb:uint = bd.getPixel(x, y);
-                image.data[y * bd.width + x] = (((rgb & 0xFF0000) >> 16) + ((rgb & 0x00FF00) >> 8) + (rgb & 0x0000FF)) / 3
-            }
-        }
-        return image;
     }
 }
