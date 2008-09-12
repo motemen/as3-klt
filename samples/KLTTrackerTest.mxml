@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application
+    xmlns:mx="http://www.adobe.com/2006/mxml"
+    xmlns="*"
+    creationComplete="onCreationComplete()" >
+    <mx:Script source="KLTTrackerTest.as"></mx:Script>
+    <mx:Image id="image" source="@Embed('Lenna.png')" />
+    <mx:Canvas id="canvas" width="{image.width}" height="{image.height}" />
+</mx:Application>
