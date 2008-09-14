@@ -1,11 +1,12 @@
-=========
- as3-klt
-=========
+===============
+    as3-klt
+===============
 
 as3-klt is a library for image feature tracking/detection based on `KLT <http://www.ces.clemson.edu/~stb/klt/>`_, a C library.
 
-Synopsis
---------
+------------
+  Synopsis
+------------
 ::
 
   var bd:BitmapData = new BitmapData(image.width, image.height);
@@ -23,19 +24,42 @@ Synopsis
       g.drawCircle(p.x, p.y, 2);
   }
 
-Classes
--------
+-----------
+  Classes
+-----------
 
 ``net.tokyoenvious.KLTTracker``
-  Contains feature-tracking context.
+'''''''''''''''''''''''''''''''
+
+Contains feature-tracking context.
+
+``selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:int):Array``
+  Finds and returns ``nFeatures`` feature points in an image ``bd`` of size ``nCols`` x ``nRows``.
 
 ``net.tokyoenvious.KLTFeature``
-  Represents a detected feature point.
+'''''''''''''''''''''''''''''''
+
+Represents a detected feature point.
+
+``x``, ``y``
+  Feature's position.
+
+``val``
+  Feature's score.
 
 ``net.tokyoenvious.KLTFloatImage``
-  Used internally.
+''''''''''''''''''''''''''''''''''
 
-TODO
-----
+Used internally. Has value of type ``Number`` on each pixel.
+
+``net.tokyoenvious.KLTConvolutionKernel``
+'''''''''''''''''''''''''''''''''''''''''
+
+Used internally.
+
+--------
+  TODO
+--------
+
 * **Write feature-tracking code**
-* Separate ``ConvolutionKernel`` from ``KLTTracker``
+* Simplify code
