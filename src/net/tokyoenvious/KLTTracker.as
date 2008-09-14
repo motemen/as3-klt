@@ -9,8 +9,8 @@ package net.tokyoenvious {
         public var minEigenvalue:uint = 1;
 
         private var sigmaLast:Number = -10.0;
-        private var gaussKernel:ConvolutionKernel;
-        private var gaussDerivKernel:ConvolutionKernel;
+        private var gaussKernel:KLTConvolutionKernel;
+        private var gaussDerivKernel:KLTConvolutionKernel;
 
         public function selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:uint):Array {
             if (windowWidth % 2 != 1)  windowWidth++;
@@ -21,7 +21,7 @@ package net.tokyoenvious {
             var windowHW:uint = windowWidth / 2; 
             var windowHH:uint = windowHeight / 2;
 
-            var grad:Object = computeGradients(KLTFloatImage.fromBitmapData(bd), gradSigma);
+            var grad:Object = KLTFloatImage.fromBitmapData(bd).computeGradients(gradSigma);
             var gradX:KLTFloatImage = grad.x, gradY:KLTFloatImage = grad.y;
 
             var points:Array = [];
@@ -57,66 +57,6 @@ package net.tokyoenvious {
                 minEigenvalue,
                 nFeatures
             );
-        }
-
-        private function convolveImageHoriz(image:KLTFloatImage, kernel:ConvolutionKernel):KLTFloatImage {
-            var imageOut:KLTFloatImage = image.clone();
-            var radius:uint = kernel.width / 2;
-
-            for (var y:uint = 0; y < image.nRows; y++) {
-                for (var x:uint = 0; x < radius; x++) {
-                    imageOut.setDataAt(x, y, 0.0);
-                }
-                for (; x < image.nCols - radius; x++) {
-                    var sum:Number = 0.0;
-                    for (var k:int = kernel.width - 1; k >= 0; k--) {
-                        sum += image.getDataAt(x - radius + k, y) * kernel.data[k];
-                    }
-                    imageOut.setDataAt(x, y, sum);
-                }
-                for (; x < image.nCols; x++) {
-                    imageOut.setDataAt(x, y, 0.0);
-                }
-            }
-
-            return imageOut;
-        }
-
-        private function convolveImageVert(image:KLTFloatImage, kernel:ConvolutionKernel):KLTFloatImage {
-            var imageOut:KLTFloatImage = image.clone();
-            var radius:uint = kernel.width / 2;
-
-            for (var x:uint = 0; x < image.nCols; x++) {
-                for (var y:uint = 0; y < radius; y++) {
-                    imageOut.setDataAt(x, y, 0.0);
-                }
-                for (; y < image.nCols - radius; y++) {
-                    var sum:Number = 0.0;
-                    for (var k:int = kernel.width - 1; k >= 0; k--) {
-                        sum += image.getDataAt(x, y - radius + k) * kernel.data[k];
-                    }
-                    imageOut.setDataAt(x, y, sum);
-                }
-                for (; y < image.nCols; y++) {
-                    imageOut.setDataAt(x, y, 0.0);
-                }
-            }
-
-            return imageOut;
-        }
-
-        private function computeGradients(img:KLTFloatImage, sigma:Number):Object {
-            if (Math.abs(sigma - sigmaLast) > 0.05) {
-                var kernels:Object = ConvolutionKernel.computeKernels(sigma);
-                gaussKernel      = kernels.gaussKernel;
-                gaussDerivKernel = kernels.gaussDerivKernel;
-                sigmaLast = sigma;
-            }
-
-            return {
-                x: convolveSeparate(img, gaussDerivKernel, gaussKernel),
-                y: convolveSeparate(img, gaussKernel, gaussDerivKernel)
-            };
         }
 
         private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, minDist:int, minEigenvalue:int, nFeatures:int):Array {
@@ -167,60 +107,5 @@ package net.tokyoenvious {
         private function calcMinEigenvalue(gxx:Number, gxy:Number, gyy:Number):Number {
             return (gxx + gyy - Math.sqrt((gxx - gyy) * (gxx - gyy) + 4 * gxy * gxy)) / 2.0;
         }
-
-        private function convolveSeparate(img:KLTFloatImage, horizKernel:ConvolutionKernel, vertKernel:ConvolutionKernel):KLTFloatImage {
-            return convolveImageVert(convolveImageHoriz(img, horizKernel), vertKernel);
-        }
-    }
-}
-
-class ConvolutionKernel {
-    public var width:uint;
-    public var data:Array;
-    public static const MAX_KERNEL_WIDTH:uint = 71;
-
-    public function ConvolutionKernel() {
-        data = new Array(MAX_KERNEL_WIDTH);
-    }
-
-    public static function computeKernels(sigma:Number):Object {
-        var gauss:ConvolutionKernel      = new ConvolutionKernel;
-        var gaussDeriv:ConvolutionKernel = new ConvolutionKernel;
-        var factor:Number = 0.01;
-        var i:int, hw:uint;
-
-        hw = MAX_KERNEL_WIDTH / 2;
-        var maxGauss:Number = 1.0, maxGaussDeriv:Number = sigma * Math.exp(-0.5);
-
-        for (i = -hw; i <= hw; i++) {
-            gauss.data[hw+i] = Math.exp(-i * i / (2 * sigma * sigma));
-            gaussDeriv.data[hw+i] = -i * gauss.data[hw+i];
-        }
-
-        gauss.width = MAX_KERNEL_WIDTH;
-        for (i = -hw; Math.abs(gauss.data[hw+i] / maxGauss) < factor; i++, gauss.width -= 2)
-            ;
-        gaussDeriv.width = MAX_KERNEL_WIDTH;
-        for (i = -hw; Math.abs(gaussDeriv.data[hw+i] / maxGaussDeriv) < factor; i++, gaussDeriv.width -= 2)
-            ;
-
-        for (i = 0; i < gauss.width; i++)
-            gauss.data[i] = gauss.data[i + (MAX_KERNEL_WIDTH - gauss.width) / 2];
-        for (i = 0; i < gaussDeriv.width; i++)
-            gaussDeriv.data[i] = gaussDeriv.data[i + (MAX_KERNEL_WIDTH - gaussDeriv.width) / 2];
-
-        hw = gaussDeriv.width / 2;
-        var den:Number;
-        den = 0.0;
-        for (i = 0; i < gauss.width; i++) den += gauss.data[i];
-        for (i = 0; i < gauss.width; i++) gauss.data[i] /= den;
-        den = 0.0;
-        for (i = -hw; i <= hw; i++) den -= i * gaussDeriv.data[i+hw];
-        for (i = -hw; i <= hw; i++) gaussDeriv.data[hw+i] /= den;
-
-        return {
-            gaussKernel: gauss,
-            gaussDerivKernel: gaussDeriv
-        };
     }
 }

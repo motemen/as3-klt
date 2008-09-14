@@ -1,5 +1,6 @@
 package net.tokyoenvious {
     import flash.display.BitmapData;
+
     public class KLTFloatImage {
         public var nCols:uint;
         public var nRows:uint;
@@ -21,8 +22,6 @@ package net.tokyoenvious {
 
         public function clone():KLTFloatImage {
             var image:KLTFloatImage = new KLTFloatImage(nCols, nRows);
-            image.nCols = nCols;
-            image.nRows = nRows;
             image.data  = data.slice();
             return image;
         }
@@ -37,5 +36,81 @@ package net.tokyoenvious {
             }
             return image;
         }
+
+        public function toBitmapData():BitmapData {
+            var bd:BitmapData = new BitmapData(nCols, nRows);
+            var max:Number = Math.max.apply(Math, data), min:Number = Math.min.apply(Math, data);
+            for (var y:uint = 0; y < nRows; y++) {
+                for (var x:uint = 0; x < nCols; x++) {
+                    var level:uint = ((getDataAt(x, y) + Math.max(0, -min)) * 256 / (max + Math.max(0, -min))) & 0xFF;
+                    bd.setPixel(x, y, level | (level << 8) | (level << 16));
+                }
+            }
+            return bd;
+        }
+
+        private function convolveImageHoriz(kernel:KLTConvolutionKernel):void {
+            var _data:Array = data.slice();
+            var radius:uint = kernel.width / 2;
+
+            for (var y:uint = 0; y < nRows; y++) {
+                for (var x:uint = 0; x < radius; x++) {
+                    setDataAt(x, y, 0.0);
+                }
+                for (; x < nCols - radius; x++) {
+                    var sum:Number = 0.0;
+                    for (var k:int = kernel.width - 1; k >= 0; k--) {
+                        sum += _data[y * nCols + x - radius + k] * kernel.data[k];
+                    }
+                    setDataAt(x, y, sum);
+                }
+                for (; x < nCols; x++) {
+                    setDataAt(x, y, 0.0);
+                }
+            }
+        }
+
+        private function convolveImageVert(kernel:KLTConvolutionKernel):void {
+            var _data:Array = data.slice();
+            var radius:uint = kernel.width / 2;
+
+            for (var x:uint = 0; x < nCols; x++) {
+                for (var y:uint = 0; y < radius; y++) {
+                    setDataAt(x, y, 0.0);
+                }
+                for (; y < nRows - radius; y++) {
+                    var sum:Number = 0.0;
+                    for (var k:int = kernel.width - 1; k >= 0; k--) {
+                        sum += _data[(y - radius + k) * nCols + x] * kernel.data[k];
+                    }
+                    setDataAt(x, y, sum);
+                }
+                for (; y < nRows; y++) {
+                    setDataAt(x, y, 0.0);
+                }
+            }
+        }
+
+        public function convolveSeparate(horizKernel:KLTConvolutionKernel, vertKernel:KLTConvolutionKernel):void {
+            convolveImageHoriz(horizKernel);
+            convolveImageVert(vertKernel);
+        }
+
+        public function computeGradients(sigma:Number):Object {
+            var kernels:Object = KLTConvolutionKernel.computeKernels(sigma);
+            var gaussKernel:KLTConvolutionKernel      = kernels.gaussKernel;
+            var gaussDerivKernel:KLTConvolutionKernel = kernels.gaussDerivKernel;
+
+            var gradX:KLTFloatImage = clone();
+            gradX.convolveSeparate(gaussDerivKernel, gaussKernel);
+            var gradY:KLTFloatImage = clone();
+            gradY.convolveSeparate(gaussKernel, gaussDerivKernel);
+
+            return {
+                x: gradX,
+                y: gradY
+            };
+        }
+
     }
 }
