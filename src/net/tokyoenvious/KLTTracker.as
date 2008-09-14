@@ -5,12 +5,12 @@ package net.tokyoenvious {
         public var windowWidth:uint = 7, windowHeight:uint = 7;
         public var gradSigma:Number = 1.0;
         public var nSkippedPixels:uint = 0;
-        public var mindist:uint = 10;
+        public var minDist:uint = 10;
         public var minEigenvalue:uint = 1;
 
         private var sigmaLast:Number = -10.0;
         private var gaussKernel:ConvolutionKernel;
-        private var gaussderivKernel:ConvolutionKernel;
+        private var gaussDerivKernel:ConvolutionKernel;
 
         public function selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:uint):Array {
             if (windowWidth % 2 != 1)  windowWidth++;
@@ -21,51 +21,39 @@ package net.tokyoenvious {
             var windowHW:uint = windowWidth / 2; 
             var windowHH:uint = windowHeight / 2;
 
-            var imgTemp:KLTFloatImage = KLTFloatImage.fromBitmapData(bd);
-            var grads:Object = computeGradients(imgTemp, gradSigma);
+            var grad:Object = computeGradients(KLTFloatImage.fromBitmapData(bd), gradSigma);
+            var gradX:KLTFloatImage = grad.x, gradY:KLTFloatImage = grad.y;
 
-            {
-                var points:Array = [];
-                var limit:int = (1 << 16) - 1;
-                var borderX:int = borderX;	/* Must not touch cols */
-                var borderY:int = borderY;	/* lost by convolution */
-                if (borderX < windowHW) borderX = windowHW;
-                if (borderY < windowHH) borderY = windowHH;
+            var points:Array = [];
+            var limit:int = (1 << 16) - 1;
+            var borderX:int = borderX, borderY:int = borderY;
+            if (borderX < windowHW) borderX = windowHW;
+            if (borderY < windowHH) borderY = windowHH;
 
-                /* For most of the pixels in the image, do ... */
-                for (var y:int = borderY; y < nRows - borderY; y += (nSkippedPixels + 1)) {
-                    for (var x:int = borderX; x < nCols - borderX; x += (nSkippedPixels + 1)) {
-                        /* Sum the gradients in the surrounding window */
-                        var gxx:Number = 0, gxy:Number = 0, gyy:Number = 0;
-                        for (var yy:int = y - windowHH; yy <= y + windowHH; yy++) {
-                            for (var xx:int = x - windowHW; xx <= x + windowHW; xx++) {
-                                var gx:Number = grads.x.getDataAt(xx, yy);
-                                var gy:Number = grads.y.getDataAt(xx, yy);
-                                gxx += gx * gx;
-                                gxy += gx * gy;
-                                gyy += gy * gy;
-                            }
+            for (var y:int = borderY; y < nRows - borderY; y += (nSkippedPixels + 1)) {
+                for (var x:int = borderX; x < nCols - borderX; x += (nSkippedPixels + 1)) {
+                    var gxx:Number = 0, gxy:Number = 0, gyy:Number = 0;
+                    for (var yy:int = y - windowHH; yy <= y + windowHH; yy++) {
+                        for (var xx:int = x - windowHW; xx <= x + windowHW; xx++) {
+                            var gx:Number = gradX.getDataAt(xx, yy);
+                            var gy:Number = gradY.getDataAt(xx, yy);
+                            gxx += gx * gx;
+                            gxy += gx * gy;
+                            gyy += gy * gy;
                         }
-                        /* Store the trackability of the pixel as the minimum
-                           of the two eigenvalues */
-                        var val:Number = calcMinEigenvalue(gxx, gxy, gyy);
-                        if (val > limit) {
-                            val = limit;
-                        }
-                        points.push({ x: x, y: y, val: val });
-
                     }
+
+                    var val:Number = Math.min(calcMinEigenvalue(gxx, gxy, gyy), limit);
+                    points.push({ x: x, y: y, val: val });
                 }
             }
 
-            /* Sort the features */
             points.sort(function (a:Object, b:Object):int { return a.val < b.val ? +1 : a.val > b.val ? -1 : 0 });
 
-            /* Enforce minimum distance between features */
             return enforceMinimumDistance(
                 points,
                 nCols, nRows,
-                mindist,
+                minDist,
                 minEigenvalue,
                 nFeatures
             );
@@ -118,36 +106,30 @@ package net.tokyoenvious {
         }
 
         private function computeGradients(img:KLTFloatImage, sigma:Number):Object {
-            /* Compute kernels, if necessary */
             if (Math.abs(sigma - sigmaLast) > 0.05) {
                 var kernels:Object = ConvolutionKernel.computeKernels(sigma);
                 gaussKernel      = kernels.gaussKernel;
-                gaussderivKernel = kernels.gaussderivKernel;
+                gaussDerivKernel = kernels.gaussDerivKernel;
                 sigmaLast = sigma;
             }
 
             return {
-                x: convolveSeparate(img, gaussderivKernel, gaussKernel),
-                y: convolveSeparate(img, gaussKernel, gaussderivKernel)
+                x: convolveSeparate(img, gaussDerivKernel, gaussKernel),
+                y: convolveSeparate(img, gaussKernel, gaussDerivKernel)
             };
         }
 
-        private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, mindist:int, minEigenvalue:int, nFeatures:int):Array {
-            var index:int = 0;          /* Index into features */
-            var x:int, y:int, val:int;  /* Location and trackability of pixel under consideration */
-            var featuremap:Array = new Array(nCols * nRows);
+        private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, minDist:int, minEigenvalue:int, nFeatures:int):Array {
+            var index:int = 0;
+            var x:int, y:int, val:int;
+            var featureMap:Array = new Array(nCols * nRows);
             var features:Array = new Array(nFeatures);
 
-            /* Cannot add features with an eigenvalue less than one */
             if (minEigenvalue < 1) minEigenvalue = 1;
 
-            /* Necessary because code below works with (mindist-1) */
-            mindist--;
+            minDist--;
 
-            /* For each feature point, in descending order of importance, do ... */
             for each (var point:Object in points) {
-                /* If we can't add all the points, then fill in the rest
-                   of the featurelist with -1's */
                 if (index >= points.length) {
                     while (index < nFeatures)  {
                         if (features[index].val < 0) {
@@ -166,25 +148,20 @@ package net.tokyoenvious {
                     break;
                 }
 
-                /* If no neighbor has been selected, and if the minimum
-                   eigenvalue is large enough, then add feature to the current list */
-                if (!featuremap[point.y * nCols + point.x] && point.val >= minEigenvalue)  {
+                if (!featureMap[point.y * nCols + point.x] && point.val >= minEigenvalue)  {
                     features[index++] = new KLTFeature(point.x, point.y, point.val);
-
-                    /* Fill in surrounding region of feature map, but
-                       make sure that pixels are in-bounds */
-                    fillFeaturemap(point.x, point.y, featuremap, mindist, nCols, nRows);
+                    fillFeaturemap(point.x, point.y, featureMap, minDist, nCols, nRows);
                 }
             }
 
             return features;
         }
 
-        private function fillFeaturemap(x:int, y:int, featuremap:Array, mindist:int, nCols:int, nRows:int):void {
-            for (var iy:int = y - mindist ; iy <= y + mindist ; iy++)
-                for (var ix:int = x - mindist ; ix <= x + mindist ; ix++)
+        private function fillFeaturemap(x:int, y:int, featureMap:Array, minDist:int, nCols:int, nRows:int):void {
+            for (var iy:int = y - minDist ; iy <= y + minDist ; iy++)
+                for (var ix:int = x - minDist ; ix <= x + minDist ; ix++)
                     if (ix >= 0 && ix < nCols && iy >= 0 && iy < nRows)
-                        featuremap[iy * nCols + ix] = true;
+                        featureMap[iy * nCols + ix] = true;
         }
 
         private function calcMinEigenvalue(gxx:Number, gxy:Number, gyy:Number):Number {
@@ -208,47 +185,42 @@ class ConvolutionKernel {
 
     public static function computeKernels(sigma:Number):Object {
         var gauss:ConvolutionKernel      = new ConvolutionKernel;
-        var gaussderiv:ConvolutionKernel = new ConvolutionKernel;
-        var factor:Number = 0.01; /* for truncating tail */
+        var gaussDeriv:ConvolutionKernel = new ConvolutionKernel;
+        var factor:Number = 0.01;
         var i:int, hw:uint;
 
-        /* Compute kernels, and automatically determine widths */
-        {
-            hw = MAX_KERNEL_WIDTH / 2;
-            var maxGauss:Number = 1.0, maxGaussderiv:Number = sigma * Math.exp(-0.5);
-            /* Compute gauss and deriv */
-            for (i = -hw; i <= hw; i++) {
-                gauss.data[hw+i] = Math.exp(-i * i / (2 * sigma * sigma));
-                gaussderiv.data[hw+i] = -i * gauss.data[hw+i];
-            }
-            /* Compute widths */
-            gauss.width = MAX_KERNEL_WIDTH;
-            for (i = -hw; Math.abs(gauss.data[hw+i] / maxGauss) < factor; i++, gauss.width -= 2)
-                ;
-            gaussderiv.width = MAX_KERNEL_WIDTH;
-            for (i = -hw; Math.abs(gaussderiv.data[hw+i] / maxGaussderiv) < factor; i++, gaussderiv.width -= 2)
-                ;
+        hw = MAX_KERNEL_WIDTH / 2;
+        var maxGauss:Number = 1.0, maxGaussDeriv:Number = sigma * Math.exp(-0.5);
+
+        for (i = -hw; i <= hw; i++) {
+            gauss.data[hw+i] = Math.exp(-i * i / (2 * sigma * sigma));
+            gaussDeriv.data[hw+i] = -i * gauss.data[hw+i];
         }
-        /* Shift if width less than MAX_KERNEL_WIDTH */
+
+        gauss.width = MAX_KERNEL_WIDTH;
+        for (i = -hw; Math.abs(gauss.data[hw+i] / maxGauss) < factor; i++, gauss.width -= 2)
+            ;
+        gaussDeriv.width = MAX_KERNEL_WIDTH;
+        for (i = -hw; Math.abs(gaussDeriv.data[hw+i] / maxGaussDeriv) < factor; i++, gaussDeriv.width -= 2)
+            ;
+
         for (i = 0; i < gauss.width; i++)
             gauss.data[i] = gauss.data[i + (MAX_KERNEL_WIDTH - gauss.width) / 2];
-        for (i = 0; i < gaussderiv.width; i++)
-            gaussderiv.data[i] = gaussderiv.data[i + (MAX_KERNEL_WIDTH - gaussderiv.width) / 2];
-        /* Normalize gauss and deriv */
-        {
-            hw = gaussderiv.width / 2;
-            var den:Number;
-            den = 0.0;
-            for (i = 0; i < gauss.width;i++) den += gauss.data[i];
-            for (i = 0; i < gauss.width;i++) gauss.data[i] /= den;
-            den = 0.0;
-            for (i = -hw; i <= hw; i++) den -= i * gaussderiv.data[i+hw];
-            for (i = -hw; i <= hw; i++) gaussderiv.data[hw+i] /= den;
-        }
+        for (i = 0; i < gaussDeriv.width; i++)
+            gaussDeriv.data[i] = gaussDeriv.data[i + (MAX_KERNEL_WIDTH - gaussDeriv.width) / 2];
+
+        hw = gaussDeriv.width / 2;
+        var den:Number;
+        den = 0.0;
+        for (i = 0; i < gauss.width; i++) den += gauss.data[i];
+        for (i = 0; i < gauss.width; i++) gauss.data[i] /= den;
+        den = 0.0;
+        for (i = -hw; i <= hw; i++) den -= i * gaussDeriv.data[i+hw];
+        for (i = -hw; i <= hw; i++) gaussDeriv.data[hw+i] /= den;
 
         return {
             gaussKernel: gauss,
-            gaussderivKernel: gaussderiv
+            gaussDerivKernel: gaussDeriv
         };
     }
 }
