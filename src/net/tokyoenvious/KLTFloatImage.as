@@ -31,7 +31,7 @@ package net.tokyoenvious {
             for (var y:uint = 0; y < bd.height; y++) {
                 for (var x:uint = 0; x < bd.width; x++) {
                     var rgb:uint = bd.getPixel(x, y);
-                    image.data[y * bd.width + x] = (((rgb & 0xFF0000) >> 16) + ((rgb & 0x00FF00) >> 8) + (rgb & 0x0000FF)) / 3
+                    image.setDataAt(x, y, (((rgb & 0xFF0000) >> 16) + ((rgb & 0x00FF00) >> 8) + (rgb & 0x0000FF)) / 3);
                 }
             }
             return image;
@@ -49,9 +49,9 @@ package net.tokyoenvious {
             return bd;
         }
 
-        private function convolveImageHoriz(kernel:KLTConvolutionKernel):void {
+        private function convolveImageHoriz(kernel:Array):void {
             var _data:Array = data.slice();
-            var radius:uint = kernel.width / 2;
+            var radius:uint = kernel.length / 2, len:uint = kernel.length;
 
             for (var y:uint = 0; y < nRows; y++) {
                 for (var x:uint = 0; x < radius; x++) {
@@ -59,8 +59,8 @@ package net.tokyoenvious {
                 }
                 for (; x < nCols - radius; x++) {
                     var sum:Number = 0.0;
-                    for (var k:int = kernel.width - 1; k >= 0; k--) {
-                        sum += _data[y * nCols + x - radius + k] * kernel.data[k];
+                    for (var k:int = len - 1; k >= 0; k--) {
+                        sum += _data[y * nCols + (x - radius + k)] * kernel[k];
                     }
                     setDataAt(x, y, sum);
                 }
@@ -70,9 +70,9 @@ package net.tokyoenvious {
             }
         }
 
-        private function convolveImageVert(kernel:KLTConvolutionKernel):void {
+        private function convolveImageVert(kernel:Array):void {
             var _data:Array = data.slice();
-            var radius:uint = kernel.width / 2;
+            var radius:uint = kernel.length / 2, len:uint = kernel.length;
 
             for (var x:uint = 0; x < nCols; x++) {
                 for (var y:uint = 0; y < radius; y++) {
@@ -80,8 +80,8 @@ package net.tokyoenvious {
                 }
                 for (; y < nRows - radius; y++) {
                     var sum:Number = 0.0;
-                    for (var k:int = kernel.width - 1; k >= 0; k--) {
-                        sum += _data[(y - radius + k) * nCols + x] * kernel.data[k];
+                    for (var k:int = len - 1; k >= 0; k--) {
+                        sum += _data[(y - radius + k) * nCols + x] * kernel[k];
                     }
                     setDataAt(x, y, sum);
                 }
@@ -91,15 +91,15 @@ package net.tokyoenvious {
             }
         }
 
-        public function convolveSeparate(horizKernel:KLTConvolutionKernel, vertKernel:KLTConvolutionKernel):void {
+        public function convolveSeparate(horizKernel:Array, vertKernel:Array):void {
             convolveImageHoriz(horizKernel);
             convolveImageVert(vertKernel);
         }
 
         public function computeGradients(sigma:Number):Object {
-            var kernels:Object = KLTConvolutionKernel.computeKernels(sigma);
-            var gaussKernel:KLTConvolutionKernel      = kernels.gaussKernel;
-            var gaussDerivKernel:KLTConvolutionKernel = kernels.gaussDerivKernel;
+            var kernels:Object = computeKernels(sigma);
+            var gaussKernel:Array      = kernels.gaussKernel;
+            var gaussDerivKernel:Array = kernels.gaussDerivKernel;
 
             var gradX:KLTFloatImage = clone();
             gradX.convolveSeparate(gaussDerivKernel, gaussKernel);
@@ -112,5 +112,42 @@ package net.tokyoenvious {
             };
         }
 
+        private function computeKernels(sigma:Number):Object {
+            const MAX_KERNEL_WIDTH:uint = 71;
+
+            var gauss:Array = new Array, gaussDeriv:Array = new Array;
+            var factor:Number = 0.01;
+            var i:int, hw:uint;
+
+            hw = MAX_KERNEL_WIDTH / 2;
+            var maxGauss:Number = 1.0, maxGaussDeriv:Number = sigma * Math.exp(-0.5);
+
+            for (i = -hw; i <= hw; i++) {
+                var g:Number = Math.exp(-i * i / (2 * sigma * sigma));
+                if (Math.abs(g / maxGauss) >= factor) {
+                    gauss.push(g);
+                }
+
+                var gd:Number = -i * g;
+                if (i == 0 || Math.abs(gd / maxGaussDeriv) >= factor) {
+                    gaussDeriv.push(gd);
+                }
+            }
+
+            var den:Number;
+            den = 0.0;
+            for (i = 0; i < gauss.length; i++) den += gauss[i];
+            for (i = 0; i < gauss.length; i++) gauss[i] /= den;
+
+            hw = gaussDeriv.length / 2;
+            den = 0.0;
+            for (i = -hw; i <= hw; i++) den -= i * gaussDeriv[i+hw];
+            for (i = -hw; i <= hw; i++) gaussDeriv[hw+i] /= den;
+
+            return {
+                gaussKernel: gauss,
+                gaussDerivKernel: gaussDeriv
+            };
+        }
     }
 }

@@ -52,11 +52,6 @@ Represents a detected feature point.
 
 Used internally. Has value of type ``Number`` on each pixel.
 
-``net.tokyoenvious.KLTConvolutionKernel``
-'''''''''''''''''''''''''''''''''''''''''
-
-Used internally.
-
 --------
   TODO
 --------

@@ -9,8 +9,6 @@ package net.tokyoenvious {
         public var minEigenvalue:uint = 1;
 
         private var sigmaLast:Number = -10.0;
-        private var gaussKernel:KLTConvolutionKernel;
-        private var gaussDerivKernel:KLTConvolutionKernel;
 
         public function selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:uint):Array {
             if (windowWidth % 2 != 1)  windowWidth++;
