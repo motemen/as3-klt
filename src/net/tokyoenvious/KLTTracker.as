@@ -7,6 +7,9 @@ package net.tokyoenvious {
         public var nSkippedPixels:uint = 0;
         public var minDist:uint = 10;
         public var minEigenvalue:uint = 1;
+        public var nPyramidLevels:uint = 2;
+
+        public var pyramidSigmaFact:Number = 0.9;
 
         private var sigmaLast:Number = -10.0;
 
@@ -55,6 +58,22 @@ package net.tokyoenvious {
                 minEigenvalue,
                 nFeatures
             );
+        }
+
+        public function trackFeatures(bd1:BitmapData, bd2:BitmapData, nCols:uint, nRows:uint, features:Array):void {
+            if (windowWidth % 2 != 1)  windowWidth++;
+            if (windowHeight % 2 != 1) windowHeight++;
+            if (windowWidth < 3)  windowWidth = 3;
+            if (windowHeight < 3) windowHeight = 3;
+
+            var image1:KLTFloatImage = KLTFloatImage.fromBitmapData(bd1);
+            // image1.smooth();
+            //var pyramid1:KLTPyramid = image1.computePyramid(/*subsampling, */nPyramidLevels, pyramidSigmaFact);
+            var pyramid1:KLTPyramid = new KLTPyramid(image1, nPyramidLevels, pyramidSigmaFact);
+            var pyramid1Grad:Array = new Array;
+            for each (var img:KLTFloatImage in pyramid1.images) {
+                pyramid1Grad.push(img.computeGradients(gradSigma));
+            }
         }
 
         private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, minDist:int, minEigenvalue:int, nFeatures:int):Array {

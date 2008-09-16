@@ -6,5 +6,6 @@
     <mx:HBox>
         <mx:Image id="image" source="@Embed('Lenna.png')" />
         <mx:Canvas id="canvas" width="{image.width}" height="{image.height}" />
+        <mx:Canvas id="canvas2" width="{image.width}" height="{image.height}" />
     </mx:HBox>
 </mx:Application>

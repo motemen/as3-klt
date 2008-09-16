@@ -1,5 +1,4 @@
-import net.tokyoenvious.KLTTracker;
-import net.tokyoenvious.KLTFeature;
+import net.tokyoenvious.*;
 import flash.utils.getTimer;
 
 public function onCreationComplete():void {
@@ -18,6 +17,14 @@ public function onCreationComplete():void {
     }
     for each (var p:KLTFeature in features) {
         canvas.graphics.drawCircle(p.x, p.y, 2);
+    }
+
+    var py:KLTPyramid = new KLTPyramid(KLTFloatImage.fromBitmapData(bd), 2, 0.9);
+    for each (var img:KLTFloatImage in py.images) {
+        var bd:BitmapData = img.toBitmapData();
+        canvas2.graphics.beginBitmapFill(bd);
+        canvas2.graphics.drawRect(0, 0, bd.width, bd.height);
+        canvas2.graphics.endFill();
     }
 
     trace((getTimer() - startTime) + ' msec');

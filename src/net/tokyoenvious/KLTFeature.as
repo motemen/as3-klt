@@ -28,9 +28,5 @@ package net.tokyoenvious {
             affAxy = 0.0;
             affAyy = 1.0;
         }
-
-        public function toString():String {
-            return '[KLTFeature (' + x + ',' + y + ')]';
-        }
     }
 }
