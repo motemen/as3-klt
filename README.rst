@@ -52,6 +52,11 @@ Represents a detected feature point.
 
 Used internally. Has value of type ``Number`` on each pixel.
 
+``net.tokyoenvious.KLTPyramid``
+'''''''''''''''''''''''''''''''
+
+Used internally. Represents pyramid of ``KLTFloatImage``.
+
 --------
   TODO
 --------
