@@ -20,6 +20,16 @@ package net.tokyoenvious {
             data[y * nCols + x] = value;
         }
 
+        public function getInterpolatedData(x:Number, y:Number):Number {
+            var xt:int = int(x), yt:int = int(y);
+            var ax:Number = x - xt, ay:Number = y - yt;
+
+            return (1 - ax) * (1 - ay) * getDataAt(xt,     yt    )
+                 +      ax  * (1 - ay) * getDataAt(xt + 1, yt    )
+                 + (1 - ax) *      ay  * getDataAt(xt,     yt + 1)
+                 +      ax  *      ay  * getDataAt(xt + 1, yt + 1);
+        }
+
         public function clone():KLTFloatImage {
             var image:KLTFloatImage = new KLTFloatImage(nCols, nRows);
             image.data  = data.slice();

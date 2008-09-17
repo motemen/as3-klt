@@ -2,12 +2,18 @@ package net.tokyoenvious {
     import flash.display.BitmapData;
 
     public class KLTTracker {
-        public var windowWidth:uint = 7, windowHeight:uint = 7;
         public var gradSigma:Number = 1.0;
         public var nSkippedPixels:uint = 0;
         public var minDist:uint = 10;
         public var minEigenvalue:uint = 1;
+
+        public var windowWidth:uint = 7, windowHeight:uint = 7;
         public var nPyramidLevels:uint = 2;
+        public var subsampling:uint = 4;
+        public var maxIterations:uint = 10;
+        public var minDisplacement:Number = 0.1;
+        public var maxResidue:Number = 1.0;
+        public var minDeterminant:Number = 0.01;
 
         public var pyramidSigmaFact:Number = 0.9;
 
@@ -60,7 +66,7 @@ package net.tokyoenvious {
             );
         }
 
-        public function trackFeatures(bd1:BitmapData, bd2:BitmapData, nCols:uint, nRows:uint, features:Array):void {
+        public function trackFeatures(bd1:BitmapData, bd2:BitmapData, nCols:uint, nRows:uint, features:Array):Array {
             if (windowWidth % 2 != 1)  windowWidth++;
             if (windowHeight % 2 != 1) windowHeight++;
             if (windowWidth < 3)  windowWidth = 3;
@@ -68,12 +74,215 @@ package net.tokyoenvious {
 
             var image1:KLTFloatImage = KLTFloatImage.fromBitmapData(bd1);
             // image1.smooth();
-            //var pyramid1:KLTPyramid = image1.computePyramid(/*subsampling, */nPyramidLevels, pyramidSigmaFact);
-            var pyramid1:KLTPyramid = new KLTPyramid(image1, nPyramidLevels, pyramidSigmaFact);
+            var pyramid1:KLTPyramid = new KLTPyramid(image1, nPyramidLevels, pyramidSigmaFact, subsampling);
             var pyramid1Grad:Array = new Array;
             for each (var img:KLTFloatImage in pyramid1.images) {
                 pyramid1Grad.push(img.computeGradients(gradSigma));
             }
+
+            var image2:KLTFloatImage = KLTFloatImage.fromBitmapData(bd2);
+            var pyramid2:KLTPyramid = new KLTPyramid(image2, nPyramidLevels, pyramidSigmaFact, subsampling);
+            var pyramid2Grad:Array = new Array;
+            for each (var img:KLTFloatImage in pyramid2.images) {
+                pyramid2Grad.push(img.computeGradients(gradSigma));
+            }
+
+            var newFeatures:Array = new Array;
+            for each (var feature:KLTFeature in features) {
+                if (feature.val < 0) {
+                    newFeatures.push(feature);
+                    continue;
+                }
+
+                var x:Number = feature.x, y:Number = feature.y;
+                for (var r:int = nPyramidLevels - 1; r >= 0; r--) {
+                    x /= subsampling, y /= subsampling;
+                }
+
+                for (var r:int = nPyramidLevels - 1; r >= 0; r--) {
+                    x *= subsampling, y *= subsampling;
+                    var f:Object = trackFeature(
+                        x, y,
+                        pyramid1.images[r], pyramid1Grad[r].x, pyramid1Grad[r].y,
+                        pyramid2.images[r], pyramid2Grad[r].x, pyramid2Grad[r].y
+                    );
+                    trace(['f: (' + x + ',' + y + ')', f.status, f.x, f.y]);
+
+                    if (f.status == KLT_SMALL_DET || f.status == KLT_OOB) {
+                        break;
+                    }
+                }
+
+                // TODO affine mapping
+                if (f.status == KLT_OOB) {
+                    newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_OOB));
+                /*} else if (outOfBounds(f.x, f.y, nCols, nRows, borderX, borderY)) {*/
+                } else if (f.status == KLT_SMALL_DET) {
+                    newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_SMALL_DET));
+                } else if (f.status == KLT_LARGE_RESIDUE) {
+                    newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_LARGE_RESIDUE));
+                } else if (f.status == KLT_MAX_ITERATIONS) {
+                    //newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_MAX_ITERATIONS));
+                    newFeatures.push(feature);
+                    //newFeatures.push(new KLTFeature(f.x, f.y, KLT_TRACKED));
+                } else {
+                    //if (feature.x != f.x || feature.y != f.y) {
+                    //    trace('x: ' + feature.x + ' => ' + f.x);
+                    //    trace('y: ' + feature.y + ' => ' + f.y);
+                    //}
+                    newFeatures.push(new KLTFeature(f.x, f.y, KLT_TRACKED));
+                }
+            }
+
+            return newFeatures;
+        }
+
+        private const KLT_TRACKED:int        =  0;
+        private const KLT_NOT_FOUND:int      = -1;
+        private const KLT_SMALL_DET:int      = -2;
+        private const KLT_MAX_ITERATIONS:int = -3;
+        private const KLT_OOB:int            = -4;
+        private const KLT_LARGE_RESIDUE:int  = -5;
+
+        private function trackFeature(x1:Number, y1:Number, img1:KLTFloatImage, gradX1:KLTFloatImage, gradY1:KLTFloatImage, img2:KLTFloatImage, gradX2:KLTFloatImage, gradY2:KLTFloatImage):Object {
+            const ONE_PLUS_EPS:Number = 1.001;
+            var hw:uint = windowWidth / 2, hh:uint = windowHeight / 2;
+            var x2:Number = x1, y2:Number = y1;
+            var nc:int = img1.nCols, nr:int = img1.nRows;
+            var status:int;
+
+            var iteration:uint = 0;
+            do {
+                if (x1 - hw < 0.0 || nc - (x1 + hw) < ONE_PLUS_EPS ||
+                    x2 - hw < 0.0 || nc - (x2 + hw) < ONE_PLUS_EPS ||
+                    y1 - hh < 0.0 || nr - (y1 + hh) < ONE_PLUS_EPS ||
+                    y2 - hh < 0.0 || nr - (y2 + hh) < ONE_PLUS_EPS) {
+                    status = KLT_OOB;
+                    break;
+                }
+
+                var imgDiff:Array = computeIntensityDifference(img1, img2, x1, y1, x2, y2);
+                var grad:Object = computeGradientSum(gradX1, gradY1, gradX2, gradY2, x1, y1, x2, y2);
+
+                var g:Object = compute2x2GradientMatrix(grad.x, grad.y);
+                var e:Object = compute2x1ErrorVector(imgDiff, grad.x, grad.y);
+
+                var o:Object = solveEquation(g.xx, g.xy, g.yy, e.x, e.y);
+                if (o.status == KLT_SMALL_DET) {
+                    break;
+                }
+                if (x1 == 169 && y1 == 101) trace('dx, dy: ' + [o.dx, o.dy]);
+                status = o.status;
+                x2 -= o.dx, y2 -= o.dy; // FIXME: +=?
+                iteration++;
+            } while ((Math.abs(o.dx) >= minDisplacement || Math.abs(o.dy) >= minDisplacement) && iteration < maxIterations);
+
+            if (x2 - hw < 0.0 || nc - (x2 + hw) < ONE_PLUS_EPS ||
+                y2 - hh < 0.0 || nr - (y2 + hh) < ONE_PLUS_EPS) {
+                status = KLT_OOB;
+            }
+
+            if (status == KLT_TRACKED) {
+                imgDiff = computeIntensityDifference(img1, img2, x1, y1, x2, y2);
+                if (sumAbsFloatWindow(imgDiff) / (windowWidth * windowHeight) > maxResidue) {
+                    status = KLT_LARGE_RESIDUE;
+                }
+            }
+
+            return {
+                status: iteration >= maxIterations ? KLT_MAX_ITERATIONS : status,
+                x: x2,
+                y: y2
+            };
+        }
+
+        private function compute2x2GradientMatrix(gradX:Array, gradY:Array):Object {
+            var gxx:Number = 0.0, gxy:Number = 0.0, gyy:Number = 0.0;
+
+            for (var i:int = 0; i < gradX.length; i++) {
+                var gx:Number = gradX[i], gy:Number = gradY[i];
+                gxx += gx * gx;
+                gxy += gx * gy;
+                gyy += gy * gy;
+            }
+
+            return {
+                xx: gxx,
+                xy: gxy,
+                yy: gyy
+            };
+        }
+
+        private function compute2x1ErrorVector(imgDiff:Array, gradX:Array, gradY:Array):Object {
+            var ex:Number = 0.0, ey:Number = 0.0;
+            for (var i:int = 0; i < imgDiff.length; i++) {
+                var diff:Number = imgDiff[i];
+                ex += diff * gradX[i];
+                ey += diff * gradY[i];
+            }
+
+            return {
+                x: ex,
+                y: ey
+            };
+        }
+
+        private function solveEquation(gxx:Number, gxy:Number, gyy:Number, ex:Number, ey:Number):Object {
+            var det:Number = gxx * gyy - gxy * gxy;
+            if (det < minDeterminant) {
+                return {
+                    status: KLT_SMALL_DET
+                };
+            }
+
+            return {
+                status: KLT_TRACKED,
+                dx: (gyy * ex - gxy * ey) / det,
+                dy: (gxx * ey - gxy * ex) / det
+            };
+        }
+
+        private function sumAbsFloatWindow(fw:Array):Number {
+            var sum:Number = 0.0;
+
+            var i:int = 0;
+            for (var h:int = windowHeight; h > 0; h--) {
+                for (var w:int = 0; w < windowWidth; w++) {
+                    sum += Math.abs(fw[i++]);
+                }
+            }
+
+            return sum;
+        }
+
+        private function computeIntensityDifference(img1:KLTFloatImage, img2:KLTFloatImage, x1:Number, y1:Number, x2:Number, y2:Number):Array {
+            var imgDiff:Array = new Array;
+            var hw:int = windowWidth / 2, hh:int = windowHeight / 2;
+
+            for (var j:int = -hh; j <= hh; j++) {
+                for (var i:int = -hw; i < hw; i++) {
+                    imgDiff.push(img1.getInterpolatedData(x1 + i, y1 + j) - img2.getInterpolatedData(x2 + i, y2 + j));
+                }
+            }
+
+            return imgDiff;
+        }
+
+        private function computeGradientSum(gradX1:KLTFloatImage, gradY1:KLTFloatImage, gradX2:KLTFloatImage, gradY2:KLTFloatImage, x1:Number, y1:Number, x2:Number, y2:Number):Object {
+            var gradX:Array = new Array, gradY:Array = new Array;
+            var hw:int = windowWidth / 2, hh:int = windowHeight / 2;
+
+            for (var j:int = -hh; j <= hh; j++) {
+                for (var i:int = -hw; i <= hw; i++) {
+                    gradX.push(gradX1.getInterpolatedData(x1 + i, y1 + j) + gradX2.getInterpolatedData(x2 + i, y2 + j));
+                    gradY.push(gradY1.getInterpolatedData(x1 + i, y1 + j) + gradY2.getInterpolatedData(x2 + i, y2 + j));
+                }
+            }
+
+            return {
+                x: gradX,
+                y: gradY
+            };
         }
 
         private function enforceMinimumDistance(points:Array, nCols:int, nRows:int, minDist:int, minEigenvalue:int, nFeatures:int):Array {

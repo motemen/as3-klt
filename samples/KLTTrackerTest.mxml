@@ -8,4 +8,9 @@
         <mx:Canvas id="canvas" width="{image.width}" height="{image.height}" />
         <mx:Canvas id="canvas2" width="{image.width}" height="{image.height}" />
     </mx:HBox>
+    <mx:HBox>
+        <mx:Image id="image2" source="@Embed('Lenna-twisted.png')" />
+        <mx:Canvas id="canvas3" width="{image.width}" height="{image.height}" />
+        <mx:Canvas id="canvas4" width="{image.width}" height="{image.height}" />
+    </mx:HBox>
 </mx:Application>
