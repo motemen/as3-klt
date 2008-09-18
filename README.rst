@@ -65,6 +65,7 @@ Used internally. Represents pyramid of ``KLTFloatImage``.
   TODO
 --------
 
-* Impletement sequential mode
+* Implement sequential mode
+* Improve speed
 * Accept tracking region as ``Rectangle``
 * Simplify code

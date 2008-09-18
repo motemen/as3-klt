@@ -72,18 +72,19 @@ package net.tokyoenvious {
             if (windowWidth < 3)  windowWidth = 3;
             if (windowHeight < 3) windowHeight = 3;
 
+            var img:KLTFloatImage;
             var image1:KLTFloatImage = KLTFloatImage.fromBitmapData(bd1);
             // image1.smooth();
             var pyramid1:KLTPyramid = new KLTPyramid(image1, nPyramidLevels, pyramidSigmaFact, subsampling);
             var pyramid1Grad:Array = new Array;
-            for each (var img:KLTFloatImage in pyramid1.images) {
+            for each (img in pyramid1.images) {
                 pyramid1Grad.push(img.computeGradients(gradSigma));
             }
 
             var image2:KLTFloatImage = KLTFloatImage.fromBitmapData(bd2);
             var pyramid2:KLTPyramid = new KLTPyramid(image2, nPyramidLevels, pyramidSigmaFact, subsampling);
             var pyramid2Grad:Array = new Array;
-            for each (var img:KLTFloatImage in pyramid2.images) {
+            for each (img in pyramid2.images) {
                 pyramid2Grad.push(img.computeGradients(gradSigma));
             }
 
@@ -94,12 +95,13 @@ package net.tokyoenvious {
                     continue;
                 }
 
+                var r:int;
                 var x:Number = feature.x, y:Number = feature.y;
-                for (var r:int = nPyramidLevels - 1; r >= 0; r--) {
+                for (r = nPyramidLevels - 1; r >= 0; r--) {
                     x /= subsampling, y /= subsampling;
                 }
 
-                for (var r:int = nPyramidLevels - 1; r >= 0; r--) {
+                for (r = nPyramidLevels - 1; r >= 0; r--) {
                     x *= subsampling, y *= subsampling;
                     var f:Object = trackFeature(
                         x, y,
