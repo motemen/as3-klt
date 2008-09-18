@@ -106,14 +106,12 @@ package net.tokyoenvious {
                         pyramid1.images[r], pyramid1Grad[r].x, pyramid1Grad[r].y,
                         pyramid2.images[r], pyramid2Grad[r].x, pyramid2Grad[r].y
                     );
-                    //trace(['f: (' + x + ',' + y + ')', f.status, f.x, f.y]);
 
                     if (f.status == KLT_SMALL_DET || f.status == KLT_OOB) {
                         break;
                     }
                 }
 
-                // TODO affine mapping
                 if (f.status == KLT_OOB) {
                     newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_OOB));
                 /*} else if (outOfBounds(f.x, f.y, nCols, nRows, borderX, borderY)) {*/
@@ -122,14 +120,10 @@ package net.tokyoenvious {
                 } else if (f.status == KLT_LARGE_RESIDUE) {
                     newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_LARGE_RESIDUE));
                 } else if (f.status == KLT_MAX_ITERATIONS) {
+                    // XXX
                     //newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_MAX_ITERATIONS));
                     newFeatures.push(feature);
-                    //newFeatures.push(new KLTFeature(f.x, f.y, KLT_TRACKED));
                 } else {
-                    //if (feature.x != f.x || feature.y != f.y) {
-                    //    trace('x: ' + feature.x + ' => ' + f.x);
-                    //    trace('y: ' + feature.y + ' => ' + f.y);
-                    //}
                     newFeatures.push(new KLTFeature(f.x, f.y, KLT_TRACKED));
                 }
             }
@@ -170,12 +164,6 @@ package net.tokyoenvious {
                 var o:Object = solveEquation(g.xx, g.xy, g.yy, e.x, e.y);
                 if (o.status == KLT_SMALL_DET) {
                     break;
-                }
-                if (x1 == 169 && y1 == 101) {
-                    trace('gradX: ' + grad.x.map(function(n:Number, _:*, __:*):String { return n >= 0 ? '+' : '-' }).join(''));
-                    trace('gxx, gxy, gyy: ' + [g.xx, g.xy, g.yy]);
-                    trace('ex, ey: ' + [e.x, e.y]);
-                    trace('dx, dy: ' + [o.dx, o.dy]);
                 }
                 status = o.status;
                 x2 += o.dx, y2 += o.dy;
