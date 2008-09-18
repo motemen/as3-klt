@@ -2,7 +2,7 @@
     as3-klt
 ===============
 
-as3-klt is a library for image feature tracking/detection based on `KLT <http://www.ces.clemson.edu/~stb/klt/>`_, a C library.
+as3-klt is a library for image feature detection/tracking based on `KLT <http://www.ces.clemson.edu/~stb/klt/>`_, a C library.
 
 ------------
   Synopsis
@@ -36,6 +36,9 @@ Contains feature-tracking context.
 ``selectGoodFeatures(bd:BitmapData, nCols:uint, nRows:uint, nFeatures:int):Array``
   Finds and returns ``nFeatures`` feature points in an image ``bd`` of size ``nCols`` x ``nRows``.
 
+``trackFeatures(bd1:BitmapData, bd2:BitmapData, nCols:uint, nRows:uint, features:Array):Array``
+  Tracks ``features`` in image ``bd1`` of size ``nCols`` x ``nRows`` and returns their new positions in ``bd2``.
+
 ``net.tokyoenvious.KLTFeature``
 '''''''''''''''''''''''''''''''
 
@@ -45,7 +48,8 @@ Represents a detected feature point.
   Feature's position.
 
 ``val``
-  Feature's score.
+  (selectGoodFeatures) Feature's score.
+  (trackFeatures) Feature's status.
 
 ``net.tokyoenvious.KLTFloatImage``
 ''''''''''''''''''''''''''''''''''
@@ -61,5 +65,6 @@ Used internally. Represents pyramid of ``KLTFloatImage``.
   TODO
 --------
 
-* **Write feature-tracking code**
+* Impletement sequential mode
+* Accept tracking region as ``Rectangle``
 * Simplify code
