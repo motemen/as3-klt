@@ -70,7 +70,7 @@ package net.tokyoenvious {
                 for (; x < nCols - radius; x++) {
                     var sum:Number = 0.0;
                     for (var k:int = len - 1; k >= 0; k--) {
-                        sum += _data[y * nCols + (x - radius + k)] * kernel[k];
+                        sum += _data[y * nCols + (x + radius - k)] * kernel[k];
                     }
                     setDataAt(x, y, sum);
                 }
@@ -91,7 +91,7 @@ package net.tokyoenvious {
                 for (; y < nRows - radius; y++) {
                     var sum:Number = 0.0;
                     for (var k:int = len - 1; k >= 0; k--) {
-                        sum += _data[(y - radius + k) * nCols + x] * kernel[k];
+                        sum += _data[(y + radius - k) * nCols + x] * kernel[k];
                     }
                     setDataAt(x, y, sum);
                 }
@@ -127,7 +127,7 @@ package net.tokyoenvious {
 
             var gauss:Array = new Array, gaussDeriv:Array = new Array;
             var factor:Number = 0.01;
-            var i:int, hw:uint;
+            var i:int, hw:int;
 
             hw = MAX_KERNEL_WIDTH / 2;
             var maxGauss:Number = 1.0, maxGaussDeriv:Number = sigma * Math.exp(-0.5);

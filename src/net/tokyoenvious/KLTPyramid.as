@@ -15,7 +15,7 @@ package net.tokyoenvious {
                 var img:KLTFloatImage = new KLTFloatImage(nCols, nRows);
                 for (var y:uint = 0; y < nRows; y++) {
                     for (var x:uint = 0; x < nCols; x++) {
-                        img.setDataAt(x, y, currImg.getDataAt(subsampling * x + 2, subsampling * y + 2)); // XXX 4 == subsampling
+                        img.setDataAt(x, y, currImg.getDataAt(subsampling * x + 2, subsampling * y + 2));
                     }
                 }
                 images.push(img);

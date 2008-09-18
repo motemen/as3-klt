@@ -106,7 +106,7 @@ package net.tokyoenvious {
                         pyramid1.images[r], pyramid1Grad[r].x, pyramid1Grad[r].y,
                         pyramid2.images[r], pyramid2Grad[r].x, pyramid2Grad[r].y
                     );
-                    trace(['f: (' + x + ',' + y + ')', f.status, f.x, f.y]);
+                    //trace(['f: (' + x + ',' + y + ')', f.status, f.x, f.y]);
 
                     if (f.status == KLT_SMALL_DET || f.status == KLT_OOB) {
                         break;
@@ -171,9 +171,14 @@ package net.tokyoenvious {
                 if (o.status == KLT_SMALL_DET) {
                     break;
                 }
-                if (x1 == 169 && y1 == 101) trace('dx, dy: ' + [o.dx, o.dy]);
+                if (x1 == 169 && y1 == 101) {
+                    trace('gradX: ' + grad.x.map(function(n:Number, _:*, __:*):String { return n >= 0 ? '+' : '-' }).join(''));
+                    trace('gxx, gxy, gyy: ' + [g.xx, g.xy, g.yy]);
+                    trace('ex, ey: ' + [e.x, e.y]);
+                    trace('dx, dy: ' + [o.dx, o.dy]);
+                }
                 status = o.status;
-                x2 -= o.dx, y2 -= o.dy; // FIXME: +=?
+                x2 += o.dx, y2 += o.dy;
                 iteration++;
             } while ((Math.abs(o.dx) >= minDisplacement || Math.abs(o.dy) >= minDisplacement) && iteration < maxIterations);
 
