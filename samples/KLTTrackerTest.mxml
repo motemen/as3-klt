@@ -4,13 +4,19 @@
     creationComplete="onCreationComplete()">
     <mx:Script source="KLTTrackerTest.as"></mx:Script>
     <mx:HBox>
-        <mx:Image id="image" source="@Embed('Lenna.png')" />
-        <mx:Canvas id="canvas" width="{image.width}" height="{image.height}" />
-        <mx:Canvas id="canvas2" width="{image.width}" height="{image.height}" />
+        <mx:Panel title="Original image">
+            <mx:Image id="image" source="@Embed('Lenna.png')" />
+        </mx:Panel>
+        <mx:Panel title="Feature points">
+            <mx:Canvas id="canvas" width="{image.width}" height="{image.height}" />
+        </mx:Panel>
     </mx:HBox>
     <mx:HBox>
-        <mx:Image id="image2" source="@Embed('Lenna-twisted.png')" />
-        <mx:Canvas id="canvas3" width="{image.width}" height="{image.height}" />
-        <mx:Canvas id="canvas4" width="{image.width}" height="{image.height}" />
+        <mx:Panel title="Twisted image">
+            <mx:Image id="image2" source="@Embed('Lenna-twisted.png')" />
+        </mx:Panel>
+        <mx:Panel title="Tracked feature points">
+            <mx:Canvas id="canvas2" width="{image.width}" height="{image.height}" />
+        </mx:Panel>
     </mx:HBox>
 </mx:Application>
