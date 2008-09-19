@@ -1,4 +1,4 @@
-import net.tokyoenvious.*;
+import net.tokyoenvious.KLT.*;
 import flash.utils.getTimer;
 
 public function onCreationComplete():void {

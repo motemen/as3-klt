@@ -1,4 +1,4 @@
-package net.tokyoenvious {
+package net.tokyoenvious.KLT {
     import flash.display.BitmapData;
 
     public class KLTFloatImage {

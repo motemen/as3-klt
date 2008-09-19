@@ -1,4 +1,4 @@
-package net.tokyoenvious {
+package net.tokyoenvious.KLT {
     public class KLTFeature {
         public static const KLT_NOT_FOUND:int = -1;
 

@@ -1,4 +1,4 @@
-package net.tokyoenvious {
+package net.tokyoenvious.KLT {
     public class KLTPyramid {
         public var nLevels:uint;
         public var images:Array;
