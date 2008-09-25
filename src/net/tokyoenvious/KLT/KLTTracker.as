@@ -122,9 +122,8 @@ package net.tokyoenvious.KLT {
                 } else if (f.status == KLT_LARGE_RESIDUE) {
                     newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_LARGE_RESIDUE));
                 } else if (f.status == KLT_MAX_ITERATIONS) {
-                    // XXX
-                    //newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_MAX_ITERATIONS));
-                    newFeatures.push(feature);
+                    newFeatures.push(new KLTFeature(-1.0, -1.0, KLT_MAX_ITERATIONS));
+                    //newFeatures.push(feature);
                 } else {
                     newFeatures.push(new KLTFeature(f.x, f.y, KLT_TRACKED));
                 }

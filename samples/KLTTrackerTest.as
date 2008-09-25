@@ -1,7 +1,7 @@
-import net.tokyoenvious.KLT.*;
 import flash.utils.getTimer;
+import net.tokyoenvious.KLT.*;
 
-public function onCreationComplete():void {
+public function detectAndTrackFeatures():void {
     var bd1:BitmapData = new BitmapData(image.width, image.height);
     bd1.draw(image);
 
@@ -49,9 +49,11 @@ public function onCreationComplete():void {
                 }
             }
         }
-        with (canvas2.graphics) {
-            lineStyle(1, 0x00FF00);
-            drawCircle(newFeatures[i].x, newFeatures[i].y, 2);
+        if (newFeatures[i].val >= 0) {
+            with (canvas2.graphics) {
+                lineStyle(1, 0x00FF00);
+                drawCircle(newFeatures[i].x, newFeatures[i].y, 2);
+            }
         }
     }
 }

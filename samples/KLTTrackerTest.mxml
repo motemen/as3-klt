@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Application
-    xmlns="*" xmlns:mx="http://www.adobe.com/2006/mxml"
-    creationComplete="onCreationComplete()">
-    <mx:Script source="KLTTrackerTest.as"></mx:Script>
-    <mx:HBox>
-        <mx:Panel title="Original image">
-            <mx:Image id="image" source="@Embed('Lenna.png')" />
-        </mx:Panel>
-        <mx:Panel title="Feature points">
-            <mx:Canvas id="canvas" width="{image.width}" height="{image.height}" />
-        </mx:Panel>
-    </mx:HBox>
-    <mx:HBox>
-        <mx:Panel title="Twisted image">
-            <mx:Image id="image2" source="@Embed('Lenna-twisted.png')" />
-        </mx:Panel>
-        <mx:Panel title="Tracked feature points">
-            <mx:Canvas id="canvas2" width="{image.width}" height="{image.height}" />
-        </mx:Panel>
-    </mx:HBox>
-</mx:Application>
+<Application
+    xmlns="http://www.adobe.com/2006/mxml">
+    <Script source="KLTTrackerTest.as"></Script>
+    <HBox>
+        <Panel title="Original image">
+            <Image id="image" source="@Embed('Lenna.png')" />
+        </Panel>
+        <Panel title="Feature points">
+            <Canvas id="canvas" width="{image.width}" height="{image.height}" />
+        </Panel>
+    </HBox>
+    <HBox>
+        <Panel title="Twisted image">
+            <Image id="image2" source="@Embed('Lenna-twisted.png')" />
+        </Panel>
+        <Panel title="Tracked Feature points">
+            <Canvas id="canvas2" width="{image2.width}" height="{image2.height}" />
+        </Panel>
+    </HBox>
+    <Button click="detectAndTrackFeatures()" label="Detect &amp; Track Features" />
+</Application>
