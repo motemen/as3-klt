@@ -29,7 +29,7 @@ as3-klt is a library for image feature detection/tracking based on `KLT <http://
 -----------
 
 ``net.tokyoenvious.KLT.KLTTracker``
-'''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''
 
 Contains feature-tracking context.
 
@@ -40,7 +40,7 @@ Contains feature-tracking context.
   Tracks ``features`` in image ``bd1`` of size ``nCols`` x ``nRows`` and returns their new positions in ``bd2``.
 
 ``net.tokyoenvious.KLT.KLTFeature``
-'''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''
 
 Represents a detected feature point.
 
@@ -52,12 +52,12 @@ Represents a detected feature point.
   (trackFeatures) Feature's status.
 
 ``net.tokyoenvious.KLT.KLTFloatImage``
-''''''''''''''''''''''''''''''''''
+''''''''''''''''''''''''''''''''''''''
 
 Used internally. Has value of type ``Number`` on each pixel.
 
 ``net.tokyoenvious.KLT.KLTPyramid``
-'''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''
 
 Used internally. Represents pyramid of ``KLTFloatImage``.
 
