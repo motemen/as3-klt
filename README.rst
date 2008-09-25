@@ -9,6 +9,7 @@ as3-klt is a library for image feature detection/tracking based on `KLT <http://
 ------------
 ::
 
+  // detect
   var bd:BitmapData = new BitmapData(image.width, image.height);
   bd.draw(image);
 
@@ -23,6 +24,22 @@ as3-klt is a library for image feature detection/tracking based on `KLT <http://
   for each (var p:KLTFeature in features) {
       g.drawCircle(p.x, p.y, 2);
   }
+
+  // track
+  var bd2:BitmapData = new BitmapData(image.width, image.height);
+  bd2.draw(image2);
+  var newFeatures:Array = tracker.trackFeatures(bd1, bd2, image.width, image.height, features);
+
+  var g2:Graphics = canvas2.graphics;
+  g2.beginBitmapFill(bd2);
+  g2.drawRect(0, 0, bd2.width, bd2.height);
+  g2.endFill();
+  g2.lineStyle(1, 0xFF0000);
+
+  for each (var p:KLTFeature in newFeatures) {
+      g2.drawCircle(p.x, p.y, 2);
+  }
+
 
 -----------
   Classes
